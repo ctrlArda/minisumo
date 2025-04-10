@@ -2,23 +2,23 @@
 
 // Çizgi sensörleri için QTR kütüphanesi
 QTRSensors qtr;
-const uint8_t SensorCount = 6; // 6 sensör
+const uint8_t SensorCount = 8; // QTR-8A için 8 sensör
 uint16_t sensorValues[SensorCount];
 
-// MZ80 IR Sensör Pinleri
-const int irLeft = A0;    // Sol MZ80 sensörü
-const int irCenter = A1;  // Orta MZ80 sensörü
-const int irRight = A3;   // Sağ MZ80 sensörü (A2 yerine A3, çakışmayı önlemek için)
+// MZ80 IR Sensör Pinleri (Analog pinler yerine dijital pinler)
+const int irLeft = 3;    // Sol MZ80 sensörü (dijital pin)
+const int irCenter = 4;  // Orta MZ80 sensörü (dijital pin)
+const int irRight = 5;   // Sağ MZ80 sensörü (dijital pin)
 
-// Motor Pinleri (Motor sürücü kartına uygun)
-const int motorLeftForward = 5;   // Sol motor ileri
-const int motorLeftBackward = 6;  // Sol motor geri
+// Motor Pinleri
+const int motorLeftForward = 6;   // Sol motor ileri
+const int motorLeftBackward = 7;  // Sol motor geri
 const int motorRightForward = 9;  // Sağ motor ileri
 const int motorRightBackward = 10;// Sağ motor geri
 
 // Ayarlar
 const int threshold = 500;        // Çizgi sensör eşik değeri
-const int baseSpeed = 150;        // Temel hız (6V motorlara uygun)
+const int baseSpeed = 150;        // Temel hız
 const int maxSpeed = 255;         // Maksimum PWM değeri
 unsigned long lastUpdate = 0;     // Zamanlama için
 const long interval = 10;         // Güncellenme aralığı (ms)
@@ -38,9 +38,9 @@ void setup() {
   pinMode(irCenter, INPUT);
   pinMode(irRight, INPUT);
 
-  // QTR sensör başlatma
-  qtr.setTypeRC(); // RC mod
-  qtr.setSensorPins((const uint8_t[]){A4, A5, A6, A7, A8, A9}, SensorCount); // A2 çakışmasını önlemek için güncellendi
+  // QTR-8A sensör başlatma
+  qtr.setTypeAnalog(); // QTR-8A için analog mod
+  qtr.setSensorPins((const uint8_t[]){A0, A1, A2, A3, A4, A5, A6, A7}, SensorCount); // QTR-8A pinleri
   qtr.setEmitterPin(2); // IR LED kontrol pini
 
   Serial.begin(9600); // Hata ayıklam için
@@ -80,14 +80,14 @@ void loop() {
   }
 }
 
-// Ağırlıklı ortalama ile çizgi pozisyon hesaplama
+// Ağırlıklı ortalama ile 8 sensör için pozisyon hesaplama
 int readLineSensor() {
   unsigned int sum = 0;
   int weightedSum = 0;
   for (int i = 0; i < SensorCount; i++) {
     if (sensorValues[i] > threshold) {
       sum += sensorValues[i];
-      weightedSum += sensorValues[i] * (i - SensorCount / 2);
+      weightedSum += sensorValues[i] * (i - (SensorCount - 1) / 2); // 8 sensör için merkez ayarı
     }
   }
   return (sum > 0) ? (weightedSum / sum) : 0;
@@ -113,18 +113,18 @@ void moveForward(int speed) {
 // Geri hareket
 void moveBackward() {
   motorControl(-baseSpeed, -baseSpeed);
-  delay(200); // Kısa süre geri git
-  searchForOpponent(); // Arama moduna dön
+  delay(200);
+  searchForOpponent();
 }
 
 // Sola dönüş
 void turnLeft(int speed) {
-  motorControl(-baseSpeed, baseSpeed);
+  motorControl(-baseSpeed, speed);
 }
 
 // Sağa dönüş
 void turnRight(int speed) {
-  motorControl(baseSpeed, -baseSpeed);
+  motorControl(speed, -baseSpeed);
 }
 
 // Motor kontrol fonksiyonu
